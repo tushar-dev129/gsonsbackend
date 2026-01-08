@@ -10,7 +10,7 @@ const userRoute = require("./routes/userRoutes")
 
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: process.env.FRONTEND_URL || "http://gsonsindia.com",
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
 }));

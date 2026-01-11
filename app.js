@@ -23,12 +23,12 @@ app.use(express.json())
 app.use(cookieParser())
 app.options('*', cors());
 
-app.use("/gsons", userRoute);
-app.use("/gsons", postRoute);
-app.use("/gsons", productRoute);
-app.use("/gsons", SavedRoute);
-app.use("/gsons", categoryRoute);
-app.use("/gsons", contactRoute);
+app.use("/api/gsons", userRoute);
+app.use("/api/gsons", postRoute);
+app.use("/api/gsons", productRoute);
+app.use("/api/gsons", SavedRoute);
+app.use("/api/gsons", categoryRoute);
+app.use("/api/gsons", contactRoute);
 
 
 // Middleware for error 

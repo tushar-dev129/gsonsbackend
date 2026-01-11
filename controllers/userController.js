@@ -67,10 +67,10 @@ exports.loginUser = catchAsyncError(async (req, res, next) => {
 });
 
 exports.logout = catchAsyncError(async (req, res, next) => {
-  res.cookie("token", null, {
-    expires: new Date(Date.now()),
-      secure: true,       // REQUIRED on Vercel
-  sameSite: 'none' ,
+  res.cookie("token", "", {
+    expires: new Date(0),
+    secure: true,
+    sameSite: 'none',
     httpOnly: true,
   });
 

@@ -2,8 +2,10 @@ const app = require("../app");
 const dotenv = require('dotenv');
 const connectDatabase = require("../config/database");
 
+const path = require('path');
+
 // config 
-dotenv.config({ path: 'config/config.env' })
+dotenv.config({ path: path.join(__dirname, '../config/config.env') });
 
 // Connect to database
 connectDatabase();

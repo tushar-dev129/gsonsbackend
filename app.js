@@ -15,13 +15,17 @@ const contactRoute = require('./routes/contactRoutes')
 
 
 app.use(cors({
-    origin: ["https://gsonsindia.com", "http://localhost:3000", "https://gsonsbackend.vercel.app"],
+    origin: ["https://gsonsindia.com", "http://localhost:3000", "https://gsonsbackend.vercel.app", /\.vercel\.app$/],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 }));
 app.use(express.json())
 app.use(cookieParser())
 app.options('*', cors());
+
+app.get("/", (req, res) => {
+    res.send("Server is working");
+});
 
 app.use("/api/gsons", userRoute);
 app.use("/api/gsons", postRoute);

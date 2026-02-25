@@ -174,3 +174,22 @@ exports.getVariantById = catchAsyncError(async (req, res, next) => {
     });
 });
 
+// Get All Variants (Public)
+exports.getAllVariants = catchAsyncError(async (req, res, next) => {
+    const limit = parseInt(req.query.limit) || 12;
+    const page = parseInt(req.query.page) || 1;
+    const skip = (page - 1) * limit;
+
+    const variantsCount = await variantModel.countDocuments({ isActive: true });
+    const variants = await variantModel.find({ isActive: true })
+        .populate('productId')
+        .limit(limit)
+        .skip(skip);
+
+    res.status(200).json({
+        success: true,
+        count: variants.length,
+        total: variantsCount,
+        data: variants,
+    });
+});

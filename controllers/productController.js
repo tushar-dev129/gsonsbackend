@@ -125,7 +125,6 @@ const deleteProduct = catchAsyncError(async (req, res, next) => {
 // Get All Products (Public)
 const getAllProducts = catchAsyncError(async (req, res, next) => {
     const resultPerPage = parseInt(req.query.limit) || 12;
-    const productsCount = await productModel.countDocuments();
 
     // Basic query for active products
     let query = { isActive: true };
@@ -163,19 +162,15 @@ const getAllProducts = catchAsyncError(async (req, res, next) => {
         query._id = query._id ? { $and: [query._id, { $in: productIds }] } : { $in: productIds };
     }
 
-    const apiFeature = new ApiFeatures(productModel.find(query).populate('categoryId'), req.query)
+    const productsCount = await productModel.countDocuments(query);
+
+    const apiFeature = new ApiFeatures(productModel.find(query).populate('categoryId').populate('variants'), req.query)
         .search("name");
 
     let products = await apiFeature.query;
     let filteredProductsCount = products.length;
 
     apiFeature.pagination(resultPerPage);
-
-    if (req.query.sort === "price-low") {
-        // Price sorting is tricky now because price is in variants
-        // This might need a complex aggregation. For now, let's keep it simple
-        // or mention it in the verification plan.
-    }
 
     products = await apiFeature.query.clone();
 
@@ -191,7 +186,16 @@ const getAllProducts = catchAsyncError(async (req, res, next) => {
 });
 
 const getProductById = catchAsyncError(async (req, res, next) => {
-    const product = await productModel.findById(req.params.id).populate('categoryId');
+    let product = await productModel.findById(req.params.id).populate('categoryId');
+
+    // If not found, check if it's a variant ID
+    if (!product) {
+        const variant = await variantModel.findById(req.params.id);
+        if (variant) {
+            product = await productModel.findById(variant.productId).populate('categoryId');
+        }
+    }
+
     if (!product) {
         return next(new ErrorHandler("Product not found", 404));
     }
@@ -209,7 +213,16 @@ const getProductById = catchAsyncError(async (req, res, next) => {
 });
 
 const getProductBySlug = catchAsyncError(async (req, res, next) => {
-    const product = await productModel.findOne({ slug: req.params.slug }).populate('categoryId');
+    let product = await productModel.findOne({ slug: req.params.slug }).populate('categoryId');
+
+    // If not found, check if it's a variant SKU (often used as slug-like identifier)
+    if (!product) {
+        const variant = await variantModel.findOne({ sku: req.params.slug });
+        if (variant) {
+            product = await productModel.findById(variant.productId).populate('categoryId');
+        }
+    }
+
     if (!product) {
         return next(new ErrorHandler("Product not found", 404));
     }
@@ -258,7 +271,7 @@ const searchProducts = catchAsyncError(async (req, res, next) => {
     }
 
     // 3. Product name match
-    const products = await productModel.find({ name: { $regex: q, $options: 'i' }, isActive: true });
+    const products = await productModel.find({ name: { $regex: q, $options: 'i' }, isActive: true }).populate('categoryId').populate('variants');
     if (products.length > 0) {
         const results = [];
         for (const product of products) {

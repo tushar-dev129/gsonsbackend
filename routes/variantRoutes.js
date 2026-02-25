@@ -6,6 +6,7 @@ const {
     deleteVariant,
     getVariantBySku,
     getVariantById,
+    getAllVariants,
 } = require("../controllers/variantController");
 const { isAuthenticatedUser, AuthorizeRoles } = require("../middleware/auth");
 const multer = require("multer");
@@ -13,6 +14,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 Router.get("/variant/:sku", getVariantBySku);
+Router.get("/variants", getAllVariants);
 Router.get("/admin/variant/:id", isAuthenticatedUser, AuthorizeRoles("admin"), getVariantById);
 
 

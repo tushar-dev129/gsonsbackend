@@ -55,6 +55,16 @@ function arrayLimit(val) {
     return val.length <= 5;
 }
 
+ProductSchema.virtual('variants', {
+    ref: 'Variant',
+    localField: '_id',
+    foreignField: 'productId',
+});
+
+// Set toJSON and toObject to include virtuals
+ProductSchema.set('toJSON', { virtuals: true });
+ProductSchema.set('toObject', { virtuals: true });
+
 ProductSchema.index({ name: 'text' });
 
 module.exports = mongoose.model("Product", ProductSchema);

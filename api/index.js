@@ -7,7 +7,8 @@ const path = require('path');
 // config 
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
-// Connect to database
-connectDatabase();
-
-module.exports = app;
+// Serverless handler - ensure DB is connected before handling requests
+module.exports = async (req, res) => {
+    await connectDatabase();
+    return app(req, res);
+};

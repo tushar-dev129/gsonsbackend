@@ -18,20 +18,7 @@ const dashboardRoute = require('./routes/dashboardRoutes')
 
 
 const corsOptions = {
-    origin: function (origin, callback) {
-        const allowedOrigins = [
-            "https://gsonsindia.com",
-            "http://localhost:3000",
-            "https://gsonsbackend.vercel.app",
-        ];
-        // Allow requests with no origin (mobile apps, curl, etc.)
-        if (!origin) return callback(null, true);
-        // Check exact match or .vercel.app subdomain
-        if (allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) {
-            return callback(null, true);
-        }
-        return callback(new Error("Not allowed by CORS"));
-    },
+    origin: "https://gsonsindia.com",
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],

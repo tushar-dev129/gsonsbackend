@@ -7,39 +7,49 @@ const {
     deleteProduct,
     likeProduct,
     getProductById,
+    getProductBySlug,
+    searchProducts,
 } = require("../controllers/productController");
+const { bulkImport } = require("../controllers/bulkImportController");
 const { isAuthenticatedUser, AuthorizeRoles } = require("../middleware/auth");
 const multer = require("multer");
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 Router.get("/products", getAllProducts)
+    .get("/search", searchProducts)
     .post(
         "/admin/product/new",
         isAuthenticatedUser,
-        AuthorizeRoles("user", "admin"),
+        AuthorizeRoles("admin"),
         upload.array("files", 5),
         createProduct
     )
     .post(
         "/admin/product/:id",
         isAuthenticatedUser,
-        AuthorizeRoles("user", "admin"),
+        AuthorizeRoles("admin"),
         upload.array("files", 5),
         updateProduct
     )
     .delete(
         "/admin/product/:id",
         isAuthenticatedUser,
-        AuthorizeRoles("user", "admin"),
+        AuthorizeRoles("admin"),
         deleteProduct
     )
-    .put(
-        "/product/like/:id",
+    .get("/product/:id", getProductById)
+    .get("/product/slug/:slug", getProductBySlug)
+    .post(
+        "/admin/bulk-import",
         isAuthenticatedUser,
-        AuthorizeRoles("user", "admin"),
-        likeProduct
-    )
-    .get("/product/:id", getProductById);
+        AuthorizeRoles("admin"),
+        upload.fields([
+            { name: "images_zip", maxCount: 1 },
+            { name: "products_data", maxCount: 1 },
+            { name: "variants_data", maxCount: 1 },
+        ]),
+        bulkImport
+    );
 
 module.exports = Router;

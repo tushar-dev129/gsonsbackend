@@ -8,15 +8,25 @@ const PostSchema = new mongoose.Schema(
             minlength: [3, "Title must be at least 3 characters long"],
             trim: true,
         },
-        description: {
+        excerpt: {
             type: String,
             trim: true,
             default: "",
+        },
+        content: {
+            type: String,
+            required: [true, "Post content is required"],
+            trim: true,
         },
         category: {
             type: String,
             trim: true,
             default: "General",
+        },
+        status: {
+            type: String,
+            enum: ["Draft", "Published", "Scheduled"],
+            default: "Draft",
         },
         liked: [
             {

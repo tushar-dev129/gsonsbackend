@@ -12,6 +12,9 @@ const productRoute = require('./routes/productRoutes')
 const SavedRoute = require('./routes/savedRoutes')
 const categoryRoute = require('./routes/categoryRoutes')
 const contactRoute = require('./routes/contactRoutes')
+const variantRoute = require('./routes/variantRoutes')
+const dashboardRoute = require('./routes/dashboardRoutes')
+
 
 
 app.use(cors({
@@ -33,6 +36,9 @@ app.use("/api/gsons", productRoute);
 app.use("/api/gsons", SavedRoute);
 app.use("/api/gsons", categoryRoute);
 app.use("/api/gsons", contactRoute);
+app.use("/api/gsons", variantRoute);
+app.use("/api/gsons", dashboardRoute);
+
 
 
 // Middleware for error 

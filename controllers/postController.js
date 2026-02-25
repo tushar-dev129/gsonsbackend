@@ -16,8 +16,10 @@ const createPost = catchAsyncError(async (req, res, next) => {
 
     const post = await postModel.create({
         title: data.title,
-        description: data.description,
+        excerpt: data.excerpt,
+        content: data.content,
         category: data.category,
+        status: data.status,
         image: {
             url: result.secure_url,
             public_id: result.public_id,
@@ -118,7 +120,7 @@ const getAllPosts = catchAsyncError(async (req, res, next) => {
         page: parseInt(req.query.page) || 1,
         totalPages: Math.ceil(filteredPostsCount / resultPerPage),
         count: posts.length,
-        data: posts,
+        posts: posts,
     });
 });
 
@@ -154,7 +156,7 @@ const getPostById = catchAsyncError(async (req, res, next) => {
     if (!post) {
         return next(new ErrorHandler("Post not found", 404));
     }
-    res.status(200).json({ success: true, data: post });
+    res.status(200).json({ success: true, post: post });
 });
 
 module.exports = {

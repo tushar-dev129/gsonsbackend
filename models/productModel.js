@@ -8,53 +8,39 @@ const ProductSchema = new mongoose.Schema(
             minlength: [3, "Name must be at least 3 characters long"],
             trim: true,
         },
+        slug: {
+            type: String,
+            required: [true, "Product slug is required"],
+            unique: true,
+            trim: true,
+            lowercase: true,
+        },
+        categoryId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Category",
+            required: [true, "Category is required"],
+            index: true,
+        },
         description: {
             type: String,
             trim: true,
             default: "",
         },
-        price: {
-            type: Number,
-            required: [true, "Product price is required"],
-            maxLength: [8, "Price cannot exceed 8 characters"],
-        },
-        category: {
-            type: String,
-            trim: true,
-            default: "General",
-        },
-        rating: {
-            type: Number,
-            default: 0,
-        },
-        reviews: {
-            type: Number,
-            default: 0,
-        },
-        isSale: {
-            type: Boolean,
-            default: false,
-        },
-        liked: [
+        images: [
             {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "User",
+                url: {
+                    type: String,
+                    required: true,
+                },
+                publicUrl: {
+                    type: String,
+                    required: true,
+                },
             },
         ],
-        images: {
-            type: [
-                {
-                    url: {
-                        type: String,
-                        required: true,
-                    },
-                    public_id: {
-                        type: String,
-                        required: true,
-                    },
-                },
-            ],
-            validate: [arrayLimit, '{PATH} exceeds the limit of 5'],
+        isActive: {
+            type: Boolean,
+            default: true,
         },
         created_by: {
             type: mongoose.Schema.Types.ObjectId,
@@ -68,5 +54,7 @@ const ProductSchema = new mongoose.Schema(
 function arrayLimit(val) {
     return val.length <= 5;
 }
+
+ProductSchema.index({ name: 'text' });
 
 module.exports = mongoose.model("Product", ProductSchema);

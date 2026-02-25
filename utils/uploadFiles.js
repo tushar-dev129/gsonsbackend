@@ -100,5 +100,94 @@ const PostUpload = (fileBuffer) => {
   });
 };
 
-module.exports = { CourseUpload, QuestionUpload, deleteVideos, deleteImages, AvatarUpload, PostUpload }
+const CategoryUpload = (fileBuffer) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: "categories",
+        resource_type: "image",
+      },
+      (error, result) => {
+        if (result) resolve(result);
+        else reject(error);
+      }
+    );
+    stream.end(fileBuffer);
+  });
+};
+
+const ProductUpload = (fileBuffer) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: "products",
+        resource_type: "image",
+      },
+      (error, result) => {
+        if (result) resolve(result);
+        else reject(error);
+      }
+    );
+    stream.end(fileBuffer);
+  });
+};
+
+const CategoryProductUpload = (fileBuffer) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: "category_products",
+        resource_type: "image",
+      },
+      (error, result) => {
+        if (result) resolve(result);
+        else reject(error);
+      }
+    );
+    stream.end(fileBuffer);
+  });
+};
+
+const VariantUpload = (fileBuffer) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: "variants",
+        resource_type: "image",
+      },
+      (error, result) => {
+        if (result) resolve(result);
+        else reject(error);
+      }
+    );
+    stream.end(fileBuffer);
+  });
+};
+
+const BulkUpload = async (files, folder) => {
+  const uploadedFiles = [];
+  for (const file of files) {
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: folder,
+          resource_type: "image",
+        },
+        (error, result) => {
+          if (result) resolve(result);
+          else reject(error);
+        }
+      );
+      stream.end(file.buffer);
+    });
+    uploadedFiles.push({
+      url: result.secure_url,
+      publicUrl: result.public_id,
+      originalName: file.name
+    });
+  }
+  return uploadedFiles;
+};
+
+module.exports = { CourseUpload, QuestionUpload, deleteVideos, deleteImages, AvatarUpload, PostUpload, CategoryProductUpload, VariantUpload, BulkUpload, CategoryUpload, ProductUpload }
 

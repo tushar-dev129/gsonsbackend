@@ -1,55 +1,36 @@
 {
-    "version": 2,
-    "builds": [
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/api/index.js"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
         {
-            "src": "api/index.js",
-            "use": "@vercel/node"
-        }
-    ],
-    "headers": [
-        {
-            "source": "/api/(.*)",
-            "headers": [
-                {
-                    "key": "Access-Control-Allow-Credentials",
-                    "value": "true"
-                },
-                {
-                    "key": "Access-Control-Allow-Origin",
-                    "value": "https://gsonsindia.com"
-                },
-                {
-                    "key": "Access-Control-Allow-Methods",
-                    "value": "GET,POST,PUT,DELETE,OPTIONS"
-                },
-                {
-                    "key": "Access-Control-Allow-Headers",
-                    "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization"
-                }
-            ]
-        }
-    ],
-    "routes": [
-        {
-            "src": "/api/(.*)",
-            "methods": [
-                "OPTIONS"
-            ],
-            "dest": "/api/index.js",
-            "headers": {
-                "Access-Control-Allow-Credentials": "true",
-                "Access-Control-Allow-Origin": "https://gsonsindia.com",
-                "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-                "Access-Control-Allow-Headers": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization"
-            }
+          "key": "Access-Control-Allow-Credentials",
+          "value": "true"
         },
         {
-            "src": "/api/(.*)",
-            "dest": "/api/index.js"
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://gsonsindia.com"
         },
         {
-            "src": "/(.*)",
-            "dest": "/api/index.js"
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET,POST,PUT,DELETE,OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization"
         }
-    ]
+      ]
+    }
+  ]
 }

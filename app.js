@@ -18,7 +18,7 @@ const dashboardRoute = require('./routes/dashboardRoutes')
 
 
 const corsOptions = {
-    origin: "https://gsonsindia.com",
+    origin: [process.env.FRONTEND_URL, "https://gsonsindia.com", "http://localhost:3000"].filter(Boolean),
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],

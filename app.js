@@ -18,7 +18,7 @@ const dashboardRoute = require('./routes/dashboardRoutes')
 
 
 const corsOptions = {
-    origin: [process.env.FRONTEND_URL, "https://gsonsindia.com", "http://localhost:3000"].filter(Boolean),
+    origin: [process.env.FRONTEND_URL, "https://gsonsindia.com", "https://www.gsonsindia.com", "http://localhost:3000"].filter(Boolean),
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
@@ -33,14 +33,16 @@ app.get("/", (req, res) => {
     res.send("Server is working");
 });
 
-app.use("/api/gsons", userRoute);
-app.use("/api/gsons", postRoute);
-app.use("/api/gsons", productRoute);
-app.use("/api/gsons", SavedRoute);
-app.use("/api/gsons", categoryRoute);
-app.use("/api/gsons", contactRoute);
-app.use("/api/gsons", variantRoute);
-app.use("/api/gsons", dashboardRoute);
+const apiPrefixes = ["/api/gsons", "/gsons"];
+
+app.use(apiPrefixes, userRoute);
+app.use(apiPrefixes, postRoute);
+app.use(apiPrefixes, productRoute);
+app.use(apiPrefixes, SavedRoute);
+app.use(apiPrefixes, categoryRoute);
+app.use(apiPrefixes, contactRoute);
+app.use(apiPrefixes, variantRoute);
+app.use(apiPrefixes, dashboardRoute);
 
 
 

@@ -98,10 +98,17 @@ const deleteProduct = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler("Product Not Found", 404));
     }
 
-    // Check if variants exist
-    const variantsCount = await variantModel.countDocuments({ productId });
-    if (variantsCount > 0) {
-        return next(new ErrorHandler("Cannot delete product with existing variants. Delete variants first.", 400));
+    // Delete all variants and their images
+    const variants = await variantModel.find({ productId });
+    for (const variant of variants) {
+        if (variant.images && variant.images.length > 0) {
+            for (const file of variant.images) {
+                if (file.publicUrl) {
+                    await deleteImages(file.publicUrl);
+                }
+            }
+        }
+        await variant.deleteOne();
     }
 
     // Ownership check
@@ -162,26 +169,88 @@ const getAllProducts = catchAsyncError(async (req, res, next) => {
         query._id = query._id ? { $and: [query._id, { $in: productIds }] } : { $in: productIds };
     }
 
+    // Filter by keyword (Name, Description, SKU, Attributes)
+    if (req.query.keyword) {
+        const keyword = req.query.keyword;
+        const productsByName = await productModel.find({
+            $or: [
+                { name: { $regex: keyword, $options: 'i' } },
+                { description: { $regex: keyword, $options: 'i' } }
+            ]
+        }).select('_id');
+        
+        // Find variants by SKU or attributes - searching all common attribute paths
+        const productsByVariant = await variantModel.find({
+            $or: [
+                { sku: { $regex: keyword, $options: 'i' } },
+                { "attributes.watt": { $regex: keyword, $options: 'i' } },
+                { "attributes.color": { $regex: keyword, $options: 'i' } },
+                { "attributes.shape": { $regex: keyword, $options: 'i' } },
+                { "attributes.cutout": { $regex: keyword, $options: 'i' } }
+            ]
+        }).select('productId');
+
+        const combinedIds = Array.from(new Set([
+            ...productsByName.map(p => p._id.toString()),
+            ...productsByVariant.map(v => v.productId.toString())
+        ]));
+
+        if (query._id) {
+            query._id = { $and: [query._id, { $in: combinedIds }] };
+        } else {
+            query._id = { $in: combinedIds };
+        }
+    }
+
     const productsCount = await productModel.countDocuments(query);
 
-    const apiFeature = new ApiFeatures(productModel.find(query).populate('categoryId').populate('variants'), req.query)
-        .search("name");
+    const apiFeature = new ApiFeatures(productModel.find(query).populate('categoryId').populate('variants'), req.query);
 
-    let products = await apiFeature.query;
+    let products = await apiFeature.query; // Fetch all matched to allow complex sorting
+
+    // 1. Sort products in memory
+    if (req.query.sort) {
+        if (req.query.sort === 'price' || req.query.sort === '-price') {
+            const order = req.query.sort === '-price' ? -1 : 1;
+            products.sort((a, b) => {
+                const getMinPrice = (p) => p.variants?.length ? Math.min(...p.variants.map(v => v.price || 0)) : (p.price || 0);
+                return (getMinPrice(a) - getMinPrice(b)) * order;
+            });
+        } else if (req.query.sort === 'name' || req.query.sort === '-name') {
+            const order = req.query.sort === '-name' ? -1 : 1;
+            products.sort((a, b) => {
+                const nameA = a.name || "";
+                const nameB = b.name || "";
+                return nameA.localeCompare(nameB) * order;
+            });
+        } else if (req.query.sort === 'createdAt' || req.query.sort === '-createdAt') {
+            const order = req.query.sort === '-createdAt' ? -1 : 1;
+            products.sort((a, b) => {
+                const dateA = new Date(a.createdAt).getTime();
+                const dateB = new Date(b.createdAt).getTime();
+                return (dateA - dateB) * order;
+            });
+        }
+    } else {
+        // Default sort (Newest First)
+        products.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+
     let filteredProductsCount = products.length;
 
-    apiFeature.pagination(resultPerPage);
-
-    products = await apiFeature.query.clone();
+    // 2. Manual Pagination
+    const currentPage = Number(req.query.page) || 1;
+    const skip = resultPerPage * (currentPage - 1);
+    const paginatedProducts = products.slice(skip, skip + resultPerPage);
 
     res.status(200).json({
         success: true,
         total: productsCount,
         filteredCount: filteredProductsCount,
-        page: parseInt(req.query.page) || 1,
+        page: currentPage,
         totalPages: Math.ceil(filteredProductsCount / resultPerPage),
-        count: products.length,
-        data: products,
+        count: paginatedProducts.length,
+        data: paginatedProducts,
     });
 });
 

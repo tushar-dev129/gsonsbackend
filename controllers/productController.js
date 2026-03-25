@@ -138,6 +138,7 @@ const getAllProducts = catchAsyncError(async (req, res, next) => {
     if (req.user && req.user.role === 'admin') {
         query = {}; // Admin sees all
     }
+    query.$and = [];
 
     // Filter by category if provided
     if (req.query.categoryId) {
@@ -147,7 +148,7 @@ const getAllProducts = catchAsyncError(async (req, res, next) => {
     // Filter by attributes (dynamic)
     const attributeFilters = {};
     Object.keys(req.query).forEach(key => {
-        if (!['categoryId', 'page', 'limit', 'sort', 'name', 'q', 'minPrice', 'maxPrice'].includes(key)) {
+        if (!['categoryId', 'page', 'limit', 'sort', 'name', 'keyword', 'q', 'minPrice', 'maxPrice'].includes(key)) {
             attributeFilters[`attributes.${key}`] = req.query[key];
         }
     });
@@ -155,7 +156,7 @@ const getAllProducts = catchAsyncError(async (req, res, next) => {
     if (Object.keys(attributeFilters).length > 0) {
         const matchingVariants = await variantModel.find(attributeFilters).select('productId');
         const productIds = matchingVariants.map(v => v.productId);
-        query._id = query._id ? { $and: [query._id, { $in: productIds }] } : { $in: productIds };
+        query.$and.push({ _id: { $in: productIds } });
     }
 
     // Filter by price range
@@ -166,7 +167,7 @@ const getAllProducts = catchAsyncError(async (req, res, next) => {
 
         const matchingVariants = await variantModel.find({ price: priceQuery }).select('productId');
         const productIds = matchingVariants.map(v => v.productId);
-        query._id = query._id ? { $and: [query._id, { $in: productIds }] } : { $in: productIds };
+        query.$and.push({ _id: { $in: productIds } });
     }
 
     // Filter by keyword (Name, Description, SKU, Attributes)
@@ -195,11 +196,11 @@ const getAllProducts = catchAsyncError(async (req, res, next) => {
             ...productsByVariant.map(v => v.productId.toString())
         ]));
 
-        if (query._id) {
-            query._id = { $and: [query._id, { $in: combinedIds }] };
-        } else {
-            query._id = { $in: combinedIds };
-        }
+        query.$and.push({ _id: { $in: combinedIds } });
+    }
+
+    if (query.$and && query.$and.length === 0) {
+        delete query.$and;
     }
 
     const productsCount = await productModel.countDocuments(query);

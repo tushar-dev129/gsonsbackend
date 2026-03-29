@@ -35,24 +35,34 @@ const toggleSavedItem = async (req, res) => {
       return res.status(400).json({ message: "Invalid type" });
     }
 
+    const field = type === "post" ? "posts" : "products";
+
     let savedDoc = await Saved.findOne({ userId });
     if (!savedDoc) {
       savedDoc = await Saved.create({ userId, posts: [], products: [] });
     }
 
-    const field = type === "post" ? "posts" : "products";
+    const hasItem = savedDoc[field].some(id => id.toString() === itemId);
 
-    if (savedDoc[field].includes(itemId)) {
-      savedDoc[field] = savedDoc[field].filter(id => id.toString() !== itemId);
+    if (hasItem) {
+      // Atomically remove
+      savedDoc = await Saved.findOneAndUpdate(
+        { userId },
+        { $pull: { [field]: itemId } },
+        { new: true }
+      );
     } else {
-      savedDoc[field].push(itemId);
+      // Atomically add (avoiding duplicates)
+      savedDoc = await Saved.findOneAndUpdate(
+        { userId },
+        { $addToSet: { [field]: itemId } },
+        { new: true }
+      );
     }
-
-    await savedDoc.save();
 
     res.status(200).json({
       success: true,
-      message: `${type} ${savedDoc[field].includes(itemId) ? "saved" : "removed"} successfully`,
+      message: `${type} ${!hasItem ? "saved" : "removed"} successfully`,
       data: savedDoc
     });
 

@@ -176,20 +176,143 @@ exports.getVariantById = catchAsyncError(async (req, res, next) => {
 
 // Get All Variants (Public)
 exports.getAllVariants = catchAsyncError(async (req, res, next) => {
-    const limit = parseInt(req.query.limit) || 12;
-    const page = parseInt(req.query.page) || 1;
-    const skip = (page - 1) * limit;
+    const resultPerPage = parseInt(req.query.limit) || 12;
 
-    const variantsCount = await variantModel.countDocuments({ isActive: true });
-    const variants = await variantModel.find({ isActive: true })
-        .populate('productId')
-        .limit(limit)
-        .skip(skip);
+    let query = { isActive: true };
+    if (req.user && req.user.role === 'admin') {
+        query = {}; // Admin sees all
+    }
+    
+    query.$and = [];
+
+    // Category and Keyword filters require finding matching products first
+    let productIdsFromCategory = null;
+    let productIdsFromKeyword = null;
+
+    if (req.query.categoryId) {
+        const productsInCat = await productModel.find({ categoryId: req.query.categoryId }).select('_id');
+        productIdsFromCategory = productsInCat.map(p => p._id.toString());
+    }
+
+    if (req.query.keyword) {
+        const keyword = req.query.keyword;
+        const productsByName = await productModel.find({
+            $or: [
+                { name: { $regex: keyword, $options: 'i' } },
+                { description: { $regex: keyword, $options: 'i' } }
+            ]
+        }).select('_id');
+        productIdsFromKeyword = productsByName.map(p => p._id.toString());
+    }
+
+    // Intersect product IDs if both provided
+    let finalProductIds = null;
+    if (productIdsFromCategory !== null && productIdsFromKeyword !== null) {
+        finalProductIds = productIdsFromCategory.filter(id => productIdsFromKeyword.includes(id));
+    } else if (productIdsFromCategory !== null) {
+        finalProductIds = productIdsFromCategory;
+    }
+
+    let keywordOrCond = null;
+    if (req.query.keyword) {
+        const keyword = req.query.keyword;
+        keywordOrCond = {
+            $or: [
+                { sku: { $regex: keyword, $options: 'i' } },
+                { "attributes.watt": { $regex: keyword, $options: 'i' } },
+                { "attributes.color": { $regex: keyword, $options: 'i' } },
+                { "attributes.shape": { $regex: keyword, $options: 'i' } },
+                { "attributes.cutout": { $regex: keyword, $options: 'i' } }
+            ]
+        };
+        if (productIdsFromKeyword && productIdsFromKeyword.length > 0) {
+            keywordOrCond.$or.push({ productId: { $in: productIdsFromKeyword } });
+        }
+        
+        // If category filter is active, we enforce that category
+        if (finalProductIds !== null) {
+             query.$and.push({ productId: { $in: finalProductIds } }); 
+             query.$and.push(keywordOrCond);
+        } else {
+             query.$and.push(keywordOrCond);
+        }
+    } else if (finalProductIds !== null) {
+         query.$and.push({ productId: { $in: finalProductIds } });
+    }
+
+    // Filter by price range
+    if (req.query.minPrice || req.query.maxPrice) {
+        const priceQuery = {};
+        if (req.query.minPrice) priceQuery.$gte = Number(req.query.minPrice);
+        if (req.query.maxPrice) priceQuery.$lte = Number(req.query.maxPrice);
+        query.$and.push({ price: priceQuery });
+    }
+
+    // Filter by attributes (dynamic)
+    const attributeFilters = {};
+    Object.keys(req.query).forEach(key => {
+        if (!['categoryId', 'page', 'limit', 'sort', 'name', 'keyword', 'q', 'minPrice', 'maxPrice'].includes(key)) {
+            attributeFilters[`attributes.${key}`] = req.query[key];
+        }
+    });
+
+    if (Object.keys(attributeFilters).length > 0) {
+        query.$and.push(attributeFilters);
+    }
+    
+    if (query.$and && query.$and.length === 0) {
+        delete query.$and;
+    }
+
+    const variantsCount = await variantModel.countDocuments(query);
+    
+    // Fetch all matched to allow complex sorting
+    let variants = await variantModel.find(query).populate({
+        path: 'productId',
+        populate: {
+            path: 'categoryId'
+        }
+    });
+
+    // 1. Sort variants in memory
+    if (req.query.sort) {
+        if (req.query.sort === 'price' || req.query.sort === '-price') {
+            const order = req.query.sort === '-price' ? -1 : 1;
+            variants.sort((a, b) => (a.price - b.price) * order);
+        } else if (req.query.sort === 'name' || req.query.sort === '-name') {
+            const order = req.query.sort === '-name' ? -1 : 1;
+            variants.sort((a, b) => {
+                const nameA = a.productId?.name || "";
+                const nameB = b.productId?.name || "";
+                return nameA.localeCompare(nameB) * order;
+            });
+        } else if (req.query.sort === 'createdAt' || req.query.sort === '-createdAt') {
+            const order = req.query.sort === '-createdAt' ? -1 : 1;
+            variants.sort((a, b) => {
+                const dateA = new Date(a.createdAt).getTime();
+                const dateB = new Date(b.createdAt).getTime();
+                return (dateA - dateB) * order;
+            });
+        }
+    } else {
+        // Default sort (Newest First)
+        variants.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+
+    let filteredCount = variants.length;
+
+    // 2. Manual Pagination
+    const currentPage = Number(req.query.page) || 1;
+    const skip = resultPerPage * (currentPage - 1);
+    const paginatedVariants = variants.slice(skip, skip + resultPerPage);
 
     res.status(200).json({
         success: true,
-        count: variants.length,
         total: variantsCount,
-        data: variants,
+        filteredCount: filteredCount,
+        page: currentPage,
+        totalPages: Math.ceil(filteredCount / resultPerPage),
+        count: paginatedVariants.length,
+        data: paginatedVariants,
     });
 });

@@ -4,6 +4,28 @@ const catchAsyncError = require("../middleware/catchAsyncError");
 const ErrorHandler = require("../utils/errorHandler");
 const { deleteImages, VariantUpload } = require("../utils/uploadFiles");
 
+// Helper to sync product image from first available variant
+const syncProductImage = async (productId) => {
+    const product = await productModel.findById(productId);
+    if (!product) return;
+
+    const variants = await variantModel.find({ productId }).sort({ createdAt: 1 });
+    
+    // Find first variant with images
+    const variantWithImages = variants.find(v => v.images && v.images.length > 0);
+
+    if (variantWithImages) {
+        // Use only the first image as the primary product image
+        product.images = [variantWithImages.images[0]];
+    } else {
+        product.images = [];
+    }
+
+    await product.save({ validateBeforeSave: false });
+};
+
+exports.syncProductImage = syncProductImage;
+
 // Add Variant (Admin)
 exports.addVariant = catchAsyncError(async (req, res, next) => {
     const { productId, sku, price, stock, attributes, isActive } = req.body;
@@ -54,6 +76,9 @@ exports.addVariant = catchAsyncError(async (req, res, next) => {
         images: uploadedFiles,
         isActive: isActive === 'false' ? false : true,
     });
+
+    // Sync product image
+    await syncProductImage(productId);
 
     res.status(201).json({
         success: true,
@@ -118,6 +143,9 @@ exports.updateVariant = catchAsyncError(async (req, res, next) => {
         { new: true, runValidators: true }
     );
 
+    // Sync product image
+    await syncProductImage(updatedVariant.productId);
+
     res.status(200).json({
         success: true,
         variant: updatedVariant,
@@ -140,7 +168,11 @@ exports.deleteVariant = catchAsyncError(async (req, res, next) => {
         }
     }
 
+    const productId = variant.productId;
     await variant.deleteOne();
+
+    // Sync product image
+    await syncProductImage(productId);
 
     res.status(200).json({
         success: true,

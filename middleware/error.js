@@ -7,22 +7,25 @@ module.exports = (err, req, res, next) => {
 
     err.message = err.message || "Inrernal Server Error"
 
-    // wrong monogdb Cast Error 
-
-    if (err.name === "CastError") {
-        const message = `Resource not found Invalid: ${err.path}`
-        err = new ErrorHandler(message, 400)
-    }
-
-
     // duplicate key error 
-
     if (err.code === 11000) {
         const message = `Duplicate ${Object.keys(err.keyValue)} Entered`
         err = new ErrorHandler(message, 400)
     }
 
-    // Wron jwt error
+    // Mongoose Validation Error
+    if (err.name === "ValidationError") {
+        const message = Object.values(err.errors).map(val => val.message).join(", ");
+        err = new ErrorHandler(message, 400);
+    }
+
+    // wrong monogdb Cast Error 
+    if (err.name === "CastError") {
+        const message = `Resource not found Invalid: ${err.path}`
+        err = new ErrorHandler(message, 400)
+    }
+
+    // Wrong jwt error
     if (err.name === "jsonWebTokenError") {
         const message = `Json Web Token is invalid , try again `
         err = new ErrorHandler(message, 401)

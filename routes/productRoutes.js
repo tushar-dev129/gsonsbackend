@@ -22,14 +22,14 @@ Router.get("/products", getAllProducts)
         "/admin/product/new",
         isAuthenticatedUser,
         AuthorizeRoles("admin"),
-        upload.array("files", 5),
+        upload.array("files", 20),
         createProduct
     )
     .post(
         "/admin/product/:id",
         isAuthenticatedUser,
         AuthorizeRoles("admin"),
-        upload.array("files", 5),
+        upload.array("files", 20),
         updateProduct
     )
     .delete(

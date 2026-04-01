@@ -1,6 +1,7 @@
 const AdmZip = require('adm-zip');
 const productModel = require('../models/productModel');
 const variantModel = require('../models/variantModel');
+const { syncProductImage } = require('./variantController');
 const { BulkUpload } = require('../utils/uploadFiles');
 const catchAsyncError = require("../middleware/catchAsyncError");
 const ErrorHandler = require("../utils/errorHandler");
@@ -82,20 +83,8 @@ exports.bulkImport = catchAsyncError(async (req, res, next) => {
     // 4. Process Products
     for (const p of productsJson) {
         try {
-            // Find matched images in imageMap
-            const matchedImages = [];
-            const imageNames = Array.isArray(p.images) ? p.images : (p.images ? p.images.split(';') : []);
-
-            const imageBuffers = [];
-            for (const name of imageNames) {
-                const trimmedName = name.trim();
-                if (imageMap[trimmedName]) {
-                    imageBuffers.push({ buffer: imageMap[trimmedName], name: trimmedName });
-                }
-            }
-
-            // Upload to Cloudinary
-            const uploadedImages = imageBuffers.length > 0 ? await BulkUpload(imageBuffers, "products") : [];
+            // We no longer upload product-level images; images are sourced from variants
+            const uploadedImages = [];
 
             // Category Lookup Logic
             let categoryId = p.categoryId || p.category_id;
@@ -192,6 +181,12 @@ exports.bulkImport = catchAsyncError(async (req, res, next) => {
         } catch (err) {
             summary.errors.push(`Variant ${v.sku}: ${err.message}`);
         }
+    }
+
+    // 6. Sync all products processed
+    const processedProductIds = Array.from(new Set(Object.values(productMap)));
+    for (const pid of processedProductIds) {
+        await syncProductImage(pid);
     }
 
     res.status(200).json({

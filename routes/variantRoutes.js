@@ -22,12 +22,12 @@ Router.post(
     "/admin/variant/new",
     isAuthenticatedUser,
     AuthorizeRoles("admin"),
-    upload.array("files", 5),
+    upload.array("files", 20),
     addVariant
 );
 
 Router.route("/admin/variant/:id")
-    .post(isAuthenticatedUser, AuthorizeRoles("admin"), upload.array("files", 5), updateVariant)
+    .post(isAuthenticatedUser, AuthorizeRoles("admin"), upload.array("files", 20), updateVariant)
     .delete(isAuthenticatedUser, AuthorizeRoles("admin"), deleteVariant);
 
 module.exports = Router;

@@ -1,5 +1,6 @@
 const productModel = require("../models/productModel");
 const variantModel = require("../models/variantModel");
+const categoryModel = require("../models/categoryModel");
 const { deleteImages, ProductUpload } = require("../utils/uploadFiles");
 
 const catchAsyncError = require("../middleware/catchAsyncError");
@@ -12,25 +13,16 @@ const createProduct = catchAsyncError(async (req, res, next) => {
     const files = req.files;
     const userId = req.user._id;
 
-    if (!files || files.length === 0) {
-        return next(new ErrorHandler("No product images uploaded", 400));
-    }
 
-    const uploadedFiles = [];
-    for (const file of files) {
-        const result = await ProductUpload(file.buffer);
-        uploadedFiles.push({
-            url: result.secure_url,
-            publicUrl: result.public_id,
-        });
-    }
+
+
 
     const product = await productModel.create({
         name,
         slug,
         categoryId,
         description,
-        images: uploadedFiles,
+        images: [],
         isActive: isActive === 'false' ? false : true,
         created_by: userId,
     });
@@ -59,26 +51,7 @@ const updateProduct = catchAsyncError(async (req, res, next) => {
         updatedData.isActive = data.isActive === 'false' ? false : true;
     }
 
-    if (files && files.length > 0) {
-        // Delete old images
-        if (product.images && product.images.length > 0) {
-            for (const file of product.images) {
-                if (file.publicUrl) {
-                    await deleteImages(file.publicUrl);
-                }
-            }
-        }
 
-        const uploadedFiles = [];
-        for (const file of files) {
-            const result = await ProductUpload(file.buffer);
-            uploadedFiles.push({
-                url: result.secure_url,
-                publicUrl: result.public_id,
-            });
-        }
-        updatedData.images = uploadedFiles;
-    }
 
     const updatedProduct = await productModel.findByIdAndUpdate(
         productId,
@@ -170,17 +143,27 @@ const getAllProducts = catchAsyncError(async (req, res, next) => {
         query.$and.push({ _id: { $in: productIds } });
     }
 
-    // Filter by keyword (Name, Description, SKU, Attributes)
+    // Filter by keyword (Name, Description, Category Name, SKU, Attributes)
     if (req.query.keyword) {
         const keyword = req.query.keyword;
+        
+        // 1. Match products by name/description
         const productsByName = await productModel.find({
             $or: [
                 { name: { $regex: keyword, $options: 'i' } },
                 { description: { $regex: keyword, $options: 'i' } }
             ]
         }).select('_id');
+
+        // 2. Match products by category name
+        const matchedCategories = await categoryModel.find({
+            name: { $regex: keyword, $options: 'i' }
+        }).select('_id');
+        const productsByCategory = await productModel.find({
+            categoryId: { $in: matchedCategories.map(c => c._id) }
+        }).select('_id');
         
-        // Find variants by SKU or attributes - searching all common attribute paths
+        // 3. Match products by variant SKU or attributes
         const productsByVariant = await variantModel.find({
             $or: [
                 { sku: { $regex: keyword, $options: 'i' } },
@@ -193,6 +176,7 @@ const getAllProducts = catchAsyncError(async (req, res, next) => {
 
         const combinedIds = Array.from(new Set([
             ...productsByName.map(p => p._id.toString()),
+            ...productsByCategory.map(p => p._id.toString()),
             ...productsByVariant.map(v => v.productId.toString())
         ]));
 

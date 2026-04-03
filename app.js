@@ -14,6 +14,7 @@ const categoryRoute = require('./routes/categoryRoutes')
 const contactRoute = require('./routes/contactRoutes')
 const variantRoute = require('./routes/variantRoutes')
 const dashboardRoute = require('./routes/dashboardRoutes')
+const galleryRoute = require('./routes/galleryRoutes')
 
 
 
@@ -43,6 +44,7 @@ app.use(apiPrefixes, categoryRoute);
 app.use(apiPrefixes, contactRoute);
 app.use(apiPrefixes, variantRoute);
 app.use(apiPrefixes, dashboardRoute);
+app.use(apiPrefixes, galleryRoute);
 
 
 

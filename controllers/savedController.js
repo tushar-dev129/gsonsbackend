@@ -1,5 +1,6 @@
 const Saved = require("../models/savedModel");
-const productModel = require("../models/productModel");
+const Product = require("../models/productModel");
+const Variant = require("../models/variantModel");
 const postModel = require("../models/postModel");
 
 const getSavedItems = async (req, res) => {
@@ -8,7 +9,14 @@ const getSavedItems = async (req, res) => {
 
     const savedDoc = await Saved.findOne({ userId })
       .populate("posts")
-      .populate("products");
+      .populate("products")
+      .populate({
+        path: "variants",
+        populate: {
+          path: "productId",
+          select: "name images categoryId"
+        }
+      });
 
     if (!savedDoc) {
       return res.status(404).json({ message: "No saved items found" });
@@ -37,25 +45,33 @@ const toggleSavedItem = async (req, res) => {
 
     const field = type === "post" ? "posts" : "products";
 
+    let actualField = field;
+    if (type === "product") {
+      const isVariant = await Variant.exists({ _id: itemId });
+      if (isVariant) {
+        actualField = "variants";
+      }
+    }
+
     let savedDoc = await Saved.findOne({ userId });
     if (!savedDoc) {
       savedDoc = await Saved.create({ userId, posts: [], products: [] });
     }
 
-    const hasItem = savedDoc[field].some(id => id.toString() === itemId);
+    const hasItem = savedDoc[actualField].some(id => id.toString() === itemId);
 
     if (hasItem) {
       // Atomically remove
       savedDoc = await Saved.findOneAndUpdate(
         { userId },
-        { $pull: { [field]: itemId } },
+        { $pull: { [actualField]: itemId } },
         { new: true }
       );
     } else {
       // Atomically add (avoiding duplicates)
       savedDoc = await Saved.findOneAndUpdate(
         { userId },
-        { $addToSet: { [field]: itemId } },
+        { $addToSet: { [actualField]: itemId } },
         { new: true }
       );
     }

@@ -19,6 +19,12 @@ const SavedSchema = new mongoose.Schema(
         ref: "Product",
       },
     ],
+    variants: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Variant",
+      },
+    ],
   },
   { timestamps: true }
 );

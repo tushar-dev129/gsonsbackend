@@ -57,6 +57,26 @@ exports.addVariant = catchAsyncError(async (req, res, next) => {
         }
     }
 
+    // Handle images from gallery
+    if (req.body.galleryImages) {
+        try {
+            const galleryImages = typeof req.body.galleryImages === 'string' 
+                ? JSON.parse(req.body.galleryImages) 
+                : req.body.galleryImages;
+            
+            if (Array.isArray(galleryImages)) {
+                galleryImages.forEach(img => {
+                    uploadedFiles.push({
+                        url: img.url,
+                        publicUrl: img.public_id || img.publicUrl
+                    });
+                });
+            }
+        } catch (e) {
+            console.error("Error parsing galleryImages:", e);
+        }
+    }
+
     // Parse attributes if it's a string (from form-data)
     let parsedAttributes = attributes;
     if (typeof attributes === 'string') {
@@ -116,16 +136,21 @@ exports.updateVariant = catchAsyncError(async (req, res, next) => {
         } catch (e) { }
     }
 
-    if (files && files.length > 0) {
-        // Delete old images
-        if (variant.images && variant.images.length > 0) {
-            for (const file of variant.images) {
-                if (file.publicUrl) {
-                    await deleteImages(file.publicUrl);
-                }
-            }
+    // Handle existing images to delete
+    let currentImages = [...(variant.images || [])];
+    if (req.body.imagesToDelete) {
+        const idsToDelete = Array.isArray(req.body.imagesToDelete) 
+            ? req.body.imagesToDelete 
+            : [req.body.imagesToDelete];
+        
+        for (const pid of idsToDelete) {
+            if (pid) await deleteImages(pid);
         }
+        currentImages = currentImages.filter(img => !idsToDelete.includes(img.publicUrl));
+    }
 
+    // Handle new images
+    if (files && files.length > 0) {
         const uploadedFiles = [];
         for (const file of files) {
             const result = await VariantUpload(file.buffer);
@@ -134,8 +159,29 @@ exports.updateVariant = catchAsyncError(async (req, res, next) => {
                 publicUrl: result.public_id,
             });
         }
-        updatedData.images = uploadedFiles;
+        currentImages = [...currentImages, ...uploadedFiles];
     }
+
+    // Handle images from gallery
+    if (req.body.galleryImages) {
+        try {
+            const galleryImages = typeof req.body.galleryImages === 'string' 
+                ? JSON.parse(req.body.galleryImages) 
+                : req.body.galleryImages;
+            
+            if (Array.isArray(galleryImages)) {
+                const newGalleryImages = galleryImages.map(img => ({
+                    url: img.url,
+                    publicUrl: img.public_id || img.publicUrl
+                }));
+                currentImages = [...currentImages, ...newGalleryImages];
+            }
+        } catch (e) {
+            console.error("Error parsing galleryImages:", e);
+        }
+    }
+
+    updatedData.images = currentImages;
 
     const updatedVariant = await variantModel.findByIdAndUpdate(
         variantId,

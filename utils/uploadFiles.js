@@ -189,5 +189,21 @@ const BulkUpload = async (files, folder) => {
   return uploadedFiles;
 };
 
-module.exports = { CourseUpload, QuestionUpload, deleteVideos, deleteImages, AvatarUpload, PostUpload, CategoryProductUpload, VariantUpload, BulkUpload, CategoryUpload, ProductUpload }
+const GalleryUpload = (fileBuffer) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: "gallery",
+        resource_type: "image",
+      },
+      (error, result) => {
+        if (result) resolve(result);
+        else reject(error);
+      }
+    );
+    stream.end(fileBuffer);
+  });
+};
+
+module.exports = { CourseUpload, QuestionUpload, deleteVideos, deleteImages, AvatarUpload, PostUpload, CategoryProductUpload, VariantUpload, BulkUpload, CategoryUpload, ProductUpload, GalleryUpload }
 

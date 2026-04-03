@@ -10,19 +10,46 @@ const ApiFeatures = require("../utils/apifeatures");
 // Create Product (Admin)
 const createProduct = catchAsyncError(async (req, res, next) => {
     const { name, slug, categoryId, description, isActive } = req.body;
-    const files = req.files;
     const userId = req.user._id;
+    const files = req.files;
 
+    let imageList = [];
+    if (files && files.length > 0) {
+        for (const file of files) {
+            const result = await ProductUpload(file.buffer);
+            imageList.push({
+                url: result.secure_url,
+                publicUrl: result.public_id,
+            });
+        }
+    }
 
-
-
+    // Handle images from gallery
+    if (req.body.galleryImages) {
+        try {
+            const galleryImages = typeof req.body.galleryImages === 'string' 
+                ? JSON.parse(req.body.galleryImages) 
+                : req.body.galleryImages;
+            
+            if (Array.isArray(galleryImages)) {
+                galleryImages.forEach(img => {
+                    imageList.push({
+                        url: img.url,
+                        publicUrl: img.public_id || img.publicUrl
+                    });
+                });
+            }
+        } catch (e) {
+            console.error("Error parsing galleryImages:", e);
+        }
+    }
 
     const product = await productModel.create({
         name,
         slug,
         categoryId,
         description,
-        images: [],
+        images: imageList,
         isActive: isActive === 'false' ? false : true,
         created_by: userId,
     });
@@ -51,7 +78,56 @@ const updateProduct = catchAsyncError(async (req, res, next) => {
         updatedData.isActive = data.isActive === 'false' ? false : true;
     }
 
+    // Handle new images if uploaded
+    if (files && files.length > 0) {
+        let newImages = [];
+        for (const file of files) {
+            const result = await ProductUpload(file.buffer);
+            newImages.push({
+                url: result.secure_url,
+                publicUrl: result.public_id,
+            });
+        }
+        // Append new images to existing ones (or replace if desired)
+        // For GSons, we append to preserve user management
+        updatedData.images = [...(product.images || []), ...newImages];
+    }
 
+    // Handle images from gallery
+    if (req.body.galleryImages) {
+        try {
+            const galleryImages = typeof req.body.galleryImages === 'string' 
+                ? JSON.parse(req.body.galleryImages) 
+                : req.body.galleryImages;
+            
+            if (Array.isArray(galleryImages)) {
+                const currentImages = updatedData.images || product.images || [];
+                const newGalleryImages = galleryImages.map(img => ({
+                    url: img.url,
+                    publicUrl: img.public_id || img.publicUrl
+                }));
+                updatedData.images = [...currentImages, ...newGalleryImages];
+            }
+        } catch (e) {
+            console.error("Error parsing galleryImages:", e);
+        }
+    }
+
+    // Handle existing images to delete (if passed)
+    if (data.imagesToDelete) {
+        const idsToDelete = Array.isArray(data.imagesToDelete) 
+            ? data.imagesToDelete 
+            : [data.imagesToDelete];
+        
+        // Remove from Cloudinary
+        for (const pid of idsToDelete) {
+            await deleteImages(pid);
+        }
+
+        // Remove from database list (if we haven't overwritten updatedData.images yet)
+        const currentImages = updatedData.images || product.images || [];
+        updatedData.images = currentImages.filter(img => !idsToDelete.includes(img.publicUrl));
+    }
 
     const updatedProduct = await productModel.findByIdAndUpdate(
         productId,
@@ -213,6 +289,13 @@ const getAllProducts = catchAsyncError(async (req, res, next) => {
             products.sort((a, b) => {
                 const dateA = new Date(a.createdAt).getTime();
                 const dateB = new Date(b.createdAt).getTime();
+                return (dateA - dateB) * order;
+            });
+        } else if (req.query.sort === 'updatedAt' || req.query.sort === '-updatedAt') {
+            const order = req.query.sort === '-updatedAt' ? -1 : 1;
+            products.sort((a, b) => {
+                const dateA = new Date(a.updatedAt).getTime();
+                const dateB = new Date(b.updatedAt).getTime();
                 return (dateA - dateB) * order;
             });
         }

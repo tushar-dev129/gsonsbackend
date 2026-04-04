@@ -12,6 +12,11 @@ const GallerySchema = new mongoose.Schema(
             required: [true, "Public ID is required"],
             trim: true,
         },
+        folder: {
+            type: mongoose.Schema.ObjectId,
+            ref: "GalleryFolder",
+            required: [true, "Folder reference is required"],
+        },
     },
     { timestamps: true }
 );

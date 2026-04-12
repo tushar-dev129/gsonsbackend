@@ -1,7 +1,9 @@
 const productModel = require("../models/productModel");
 const variantModel = require("../models/variantModel");
 const categoryModel = require("../models/categoryModel");
-const { deleteImages, ProductUpload } = require("../utils/uploadFiles");
+const GalleryFolder = require("../models/galleryFolderModel");
+const Gallery = require("../models/galleryModel");
+const { deleteImages, DynamicCategoryUpload } = require("../utils/uploadFiles");
 
 const catchAsyncError = require("../middleware/catchAsyncError");
 const ErrorHandler = require("../utils/errorHandler");
@@ -13,13 +15,36 @@ const createProduct = catchAsyncError(async (req, res, next) => {
     const userId = req.user._id;
     const files = req.files;
 
+    let categoryName = "products";
+    if (categoryId) {
+        const category = await categoryModel.findById(categoryId);
+        if (category) {
+            categoryName = category.name.toUpperCase();
+        }
+    }
+
+    let folderObj = null;
+    if (files && files.length > 0) {
+        folderObj = await GalleryFolder.findOne({ name: categoryName });
+        if (!folderObj) {
+            folderObj = await GalleryFolder.create({ name: categoryName });
+        }
+    }
+
     let imageList = [];
     if (files && files.length > 0) {
         for (const file of files) {
-            const result = await ProductUpload(file.buffer);
+            const result = await DynamicCategoryUpload(file.buffer, categoryName, file.originalname);
             imageList.push({
                 url: result.secure_url,
                 publicUrl: result.public_id,
+            });
+
+            // Sync to Gallery
+            await Gallery.create({
+                url: result.secure_url,
+                public_id: result.public_id,
+                folder: folderObj._id,
             });
         }
     }
@@ -78,14 +103,38 @@ const updateProduct = catchAsyncError(async (req, res, next) => {
         updatedData.isActive = data.isActive === 'false' ? false : true;
     }
 
+    let targetCategoryId = data.categoryId || product.categoryId;
+    let categoryName = "products";
+    if (targetCategoryId) {
+        const category = await categoryModel.findById(targetCategoryId);
+        if (category) {
+            categoryName = category.name.toUpperCase();
+        }
+    }
+
+    let folderObj = null;
+    if (files && files.length > 0) {
+        folderObj = await GalleryFolder.findOne({ name: categoryName });
+        if (!folderObj) {
+            folderObj = await GalleryFolder.create({ name: categoryName });
+        }
+    }
+
     // Handle new images if uploaded
     if (files && files.length > 0) {
         let newImages = [];
         for (const file of files) {
-            const result = await ProductUpload(file.buffer);
+            const result = await DynamicCategoryUpload(file.buffer, categoryName, file.originalname);
             newImages.push({
                 url: result.secure_url,
                 publicUrl: result.public_id,
+            });
+
+            // Sync to Gallery
+            await Gallery.create({
+                url: result.secure_url,
+                public_id: result.public_id,
+                folder: folderObj._id,
             });
         }
         // Append new images to existing ones (or replace if desired)

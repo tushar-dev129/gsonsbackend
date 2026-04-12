@@ -1,59 +1,9 @@
 const cloudinary = require('./cloudinary')
 
-const CourseUpload = (fileBuffer) => {
-  console.log('Uploading course video...');
 
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: 'courses',
-        resource_type: 'video', // Ensures Cloudinary handles video format
-      },
-      (error, result) => {
-        if (error) {
-          console.error('Cloudinary upload error:', error);
-          reject(error);
-        } else {
-          console.log('Upload successful:', result.secure_url);
-          resolve(result);
-        }
-      }
-    );
 
-    // Send the buffer data to the upload stream
-    stream.end(fileBuffer);
-  });
-};
 
-const QuestionUpload = (fileBuffer) => {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: "questions",
-        resource_type: "image",
-      },
-      (error, result) => {
-        if (result) resolve(result);
-        else reject(error);
-      }
-    );
-    stream.end(fileBuffer);
-  });
-};
 
-const deleteVideos = async (publicId) => {
-  console.log(publicId)
-  try {
-    const result = await cloudinary.uploader.destroy(publicId, {
-      resource_type: "video", // works for images, videos, and raw files
-    });
-    console.log("Deleted:", result);
-    return result;
-  } catch (error) {
-    console.error("Error deleting resource:", error);
-    throw error;
-  }
-};
 const deleteImages = async (publicId) => {
   console.log(publicId)
   try {
@@ -116,53 +66,6 @@ const CategoryUpload = (fileBuffer) => {
   });
 };
 
-const ProductUpload = (fileBuffer) => {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: "products",
-        resource_type: "image",
-      },
-      (error, result) => {
-        if (result) resolve(result);
-        else reject(error);
-      }
-    );
-    stream.end(fileBuffer);
-  });
-};
-
-const CategoryProductUpload = (fileBuffer) => {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: "category_products",
-        resource_type: "image",
-      },
-      (error, result) => {
-        if (result) resolve(result);
-        else reject(error);
-      }
-    );
-    stream.end(fileBuffer);
-  });
-};
-
-const VariantUpload = (fileBuffer) => {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: "variants",
-        resource_type: "image",
-      },
-      (error, result) => {
-        if (result) resolve(result);
-        else reject(error);
-      }
-    );
-    stream.end(fileBuffer);
-  });
-};
 
 const BulkUpload = async (files, folder) => {
   const uploadedFiles = [];
@@ -205,5 +108,35 @@ const GalleryUpload = (fileBuffer) => {
   });
 };
 
-module.exports = { CourseUpload, QuestionUpload, deleteVideos, deleteImages, AvatarUpload, PostUpload, CategoryProductUpload, VariantUpload, BulkUpload, CategoryUpload, ProductUpload, GalleryUpload }
+const DynamicCategoryUpload = (fileBuffer, folderName, originalName) => {
+  return new Promise((resolve, reject) => {
+    // Generate a timestamp
+    const timestamp = Date.now();
+    let publicId = undefined;
 
+    if (originalName) {
+      // Remove extension from originalName, e.g. "image.png" -> "image"
+      const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.')) || originalName;
+      // Sanitize name: remove spaces, special chars
+      const sanitizedName = nameWithoutExt.replace(/[^a-zA-Z0-9_\-]/g, '_');
+      publicId = `${sanitizedName}_${timestamp}`;
+    } else {
+      publicId = `upload_${timestamp}`;
+    }
+
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: folderName,
+        resource_type: "auto",
+        public_id: publicId,
+      },
+      (error, result) => {
+        if (result) resolve(result);
+        else reject(error);
+      }
+    );
+    stream.end(fileBuffer);
+  });
+};
+
+module.exports = { deleteImages, AvatarUpload, PostUpload, BulkUpload, CategoryUpload, GalleryUpload, DynamicCategoryUpload }

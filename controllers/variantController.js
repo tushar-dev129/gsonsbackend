@@ -1,8 +1,11 @@
 const variantModel = require("../models/variantModel");
 const productModel = require("../models/productModel");
+const categoryModel = require("../models/categoryModel");
+const GalleryFolder = require("../models/galleryFolderModel");
+const Gallery = require("../models/galleryModel");
 const catchAsyncError = require("../middleware/catchAsyncError");
 const ErrorHandler = require("../utils/errorHandler");
-const { deleteImages, VariantUpload } = require("../utils/uploadFiles");
+const { deleteImages, DynamicCategoryUpload } = require("../utils/uploadFiles");
 
 // Helper to sync product image from first available variant
 const syncProductImage = async (productId) => {
@@ -46,13 +49,36 @@ exports.addVariant = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler("SKU already exists", 400));
     }
 
+    let categoryName = "variants";
+    if (product.categoryId) {
+        const category = await categoryModel.findById(product.categoryId);
+        if (category) {
+            categoryName = category.name.toUpperCase();
+        }
+    }
+
+    let folderObj = null;
+    if (files && files.length > 0) {
+        folderObj = await GalleryFolder.findOne({ name: categoryName });
+        if (!folderObj) {
+            folderObj = await GalleryFolder.create({ name: categoryName });
+        }
+    }
+
     const uploadedFiles = [];
     if (files && files.length > 0) {
         for (const file of files) {
-            const result = await VariantUpload(file.buffer);
+            const result = await DynamicCategoryUpload(file.buffer, categoryName, file.originalname);
             uploadedFiles.push({
                 url: result.secure_url,
                 publicUrl: result.public_id,
+            });
+
+            // Sync to Gallery
+            await Gallery.create({
+                url: result.secure_url,
+                public_id: result.public_id,
+                folder: folderObj._id,
             });
         }
     }
@@ -151,12 +177,33 @@ exports.updateVariant = catchAsyncError(async (req, res, next) => {
 
     // Handle new images
     if (files && files.length > 0) {
+        const product = await productModel.findById(variant.productId);
+        let categoryName = "variants";
+        if (product && product.categoryId) {
+            const category = await categoryModel.findById(product.categoryId);
+            if (category) {
+                categoryName = category.name.toUpperCase();
+            }
+        }
+
+        let folderObj = await GalleryFolder.findOne({ name: categoryName });
+        if (!folderObj) {
+            folderObj = await GalleryFolder.create({ name: categoryName });
+        }
+
         const uploadedFiles = [];
         for (const file of files) {
-            const result = await VariantUpload(file.buffer);
+            const result = await DynamicCategoryUpload(file.buffer, categoryName, file.originalname);
             uploadedFiles.push({
                 url: result.secure_url,
                 publicUrl: result.public_id,
+            });
+
+            // Sync to Gallery
+            await Gallery.create({
+                url: result.secure_url,
+                public_id: result.public_id,
+                folder: folderObj._id,
             });
         }
         currentImages = [...currentImages, ...uploadedFiles];

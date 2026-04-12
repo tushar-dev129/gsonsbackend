@@ -10,6 +10,7 @@ const {
     createFolder,
     getAllFolders,
     deleteFolder,
+    exportAllFolders,
 } = require("../controllers/galleryFolderController");
 const { isAuthenticatedUser, AuthorizeRoles } = require("../middleware/auth");
 const multer = require("multer");
@@ -47,6 +48,13 @@ Router.route("/gallery/folders")
         isAuthenticatedUser,
         AuthorizeRoles("admin"),
         createFolder
+    );
+
+Router.route("/gallery/folders/export")
+    .get(
+        isAuthenticatedUser,
+        AuthorizeRoles("admin"),
+        exportAllFolders
     );
 
 Router.route("/gallery/folders/:id")

@@ -6,6 +6,7 @@ const Gallery = require("../models/galleryModel");
 const catchAsyncError = require("../middleware/catchAsyncError");
 const ErrorHandler = require("../utils/errorHandler");
 const { deleteImages, DynamicCategoryUpload } = require("../utils/uploadFiles");
+const { getOrCreateFolder } = require("../utils/folderUtils");
 
 // Helper to sync product image from first available variant
 const syncProductImage = async (productId) => {
@@ -53,16 +54,14 @@ exports.addVariant = catchAsyncError(async (req, res, next) => {
     if (product.categoryId) {
         const category = await categoryModel.findById(product.categoryId);
         if (category) {
-            categoryName = category.name.toUpperCase();
+            categoryName = category.name;
         }
     }
 
     let folderObj = null;
     if (files && files.length > 0) {
-        folderObj = await GalleryFolder.findOne({ name: categoryName });
-        if (!folderObj) {
-            folderObj = await GalleryFolder.create({ name: categoryName });
-        }
+        folderObj = await getOrCreateFolder(categoryName);
+        categoryName = folderObj.name;
     }
 
     const uploadedFiles = [];
@@ -182,14 +181,12 @@ exports.updateVariant = catchAsyncError(async (req, res, next) => {
         if (product && product.categoryId) {
             const category = await categoryModel.findById(product.categoryId);
             if (category) {
-                categoryName = category.name.toUpperCase();
+                categoryName = category.name;
             }
         }
 
-        let folderObj = await GalleryFolder.findOne({ name: categoryName });
-        if (!folderObj) {
-            folderObj = await GalleryFolder.create({ name: categoryName });
-        }
+        folderObj = await getOrCreateFolder(categoryName);
+        categoryName = folderObj.name;
 
         const uploadedFiles = [];
         for (const file of files) {

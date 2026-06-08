@@ -21,7 +21,7 @@ exports.sendContactEmail = catchAsyncErrors(async (req, res, next) => {
 
     try {
         await sendEmail({
-            email: process.env.SMPT_MAIL,
+            email: process.env.SMPT_MAIL || process.env.SMTP_MAIL,
             subject,
             message: emailMessage,
         });
